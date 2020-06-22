@@ -1,9 +1,11 @@
 package org.es.test;
 
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequestBuilder;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -24,6 +26,7 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.Arrays;
 
 /**
  * @author xiaoqianbin
@@ -41,9 +44,7 @@ public class ElasticSearchTest {
     @Test
     public void addSingleUser() throws ParseException {
         User user = EsController.createUser(1L);
-        IndexRequestBuilder request = ess.getClient().prepareIndex("tuser", "doc")
-                .setSource(ess.toMap(user));
-        request.get();
+        ess.addBatch(Arrays.asList(user), "tuser", "doc");
     }
 
     @Test
@@ -51,23 +52,25 @@ public class ElasticSearchTest {
         long start = System.currentTimeMillis();
         BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
         BoolQueryBuilder must = boolQueryBuilder
-                .must(QueryBuilders.termQuery("bizDate", "2020-06-18"))
-                .must(QueryBuilders.rangeQuery("age").lte(800000));
+                .must(QueryBuilders.termQuery("bizdate", "2020-06-22"))
+                .must(QueryBuilders.rangeQuery("age").lte(10000));
         SearchResponse response = ess.getClient().prepareSearch("tuser").setTypes("doc")
                 .setQuery(must)
                 .addSort("age", SortOrder.DESC)
-                .setFrom(0).setSize(100)
+                .setFrom(0).setSize(1500)
                 .get();
-        logger.info("cost: {}, hits: {}, size: {}", System.currentTimeMillis() - start, response.getHits().totalHits, response.getHits().getHits().length);
+        logger.info("cost: {}, hits: {}, size: {}, es cost: {}", System.currentTimeMillis() - start, response.getHits().totalHits, response.getHits().getHits().length,
+                response.getTook().getMillis());
         start = System.currentTimeMillis();
         for (int i = 0; i < 10; i++) {
-            must = boolQueryBuilder
-                    .must(QueryBuilders.termQuery("bizDate", "2020-06-18"))
-                    .must(QueryBuilders.termQuery("age", 800000));
+            boolQueryBuilder = QueryBuilders.boolQuery();
+            BoolQueryBuilder m = boolQueryBuilder
+                    .must(QueryBuilders.termQuery("bizdate", "2020-06-22"))
+                    .must(QueryBuilders.rangeQuery("age").lte(10000));
             response = ess.getClient().prepareSearch("tuser").setTypes("doc")
-                    .setQuery(must)
+                    .setQuery(m)
                     .addSort("age", SortOrder.DESC)
-                    .setFrom(0).setSize(1)
+                    .setFrom(0).setSize(1500)
                     .get();
         }
         logger.info("cost: {}, hits: {}, size: {}", System.currentTimeMillis() - start, response.getHits().totalHits, response.getHits().getHits().length);

@@ -1,8 +1,8 @@
 package org.jd.es.service;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestBuilder;
+import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
@@ -10,6 +10,7 @@ import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
+import org.jd.es.entity.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +25,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -45,12 +45,6 @@ public class ElasticSearchService {
     @Value("${es.port:9300}")
     private int esPort;
 
-    // 最大异步等待的批次数
-    @Value("${es.maxWaitingBatches:500}")
-    private Integer maxWaitingBatches;
-
-    private Semaphore semaphore;
-
     // 失败次数
     private AtomicLong failed = new AtomicLong(0);
 
@@ -64,7 +58,6 @@ public class ElasticSearchService {
             InetAddress addr = InetAddress.getByName(host);
             client.addTransportAddress(new TransportAddress(addr, esPort));
         }
-        semaphore = new Semaphore(maxWaitingBatches);
     }
 
     /**
@@ -72,30 +65,19 @@ public class ElasticSearchService {
      * @param	list
      * @param	index   索引
      * @param	type    表
-     * @param	successCallback
-     * @param	failedCallback
      * @author  xiaoqianbin
      * @date    2020/6/22
      **/
-    public void addBatch(List<?> list, String index, String type, Runnable successCallback, Runnable failedCallback) {
+    public void addBatch(List<User> list, String index, String type) {
         BulkRequestBuilder bulk = client.prepareBulk();
-        for (Object o : list) {
-            bulk.add(client.prepareIndex(index, type).setSource(toMap(o)));
+        for (User o : list) {
+            bulk.add(client.prepareIndex(index, type)
+                    //insert ingore
+//                    .setOpType(DocWriteRequest.OpType.CREATE)
+                    .setId(o.getAge() + "").setSource(toMap(o)));
         }
-        bulk.execute(new ActionListener<BulkResponse>() {
-            @Override
-            public void onResponse(BulkResponse responses) {
-                semaphore.release();
-                successCallback.run();
-            }
-            @Override
-            public void onFailure(Exception e) {
-                semaphore.release();
-                failed.getAndAdd(1L);
-                failedCallback.run();
-            }
-        });
-        clearRequestData(bulk);
+        BulkResponse bulkItemResponses = bulk.execute().actionGet();
+        bulkItemResponses.hasFailures();
     }
 
     /**
@@ -142,18 +124,6 @@ public class ElasticSearchService {
     }
 
     /**
-     * 批量添加数据
-     * @param	list
-	 * @param	index
-	 * @param	type
-     * @author  xiaoqianbin
-     * @date    2020/6/22
-     **/
-    public void addBatch(List<?> list, String index, String type) {
-        addBatch(list, index, type, () -> {}, () -> {});
-    }
-
-    /**
      * 清除bulk请求中的数据，释放出内存
      * @param	bulk
      * @author  xiaoqianbin
@@ -169,19 +139,6 @@ public class ElasticSearchService {
             indicesField.set(req, null);
         } catch (Exception e) {
             e.printStackTrace();
-        }
-    }
-
-    /**
-     * 获取信号量，用以限流控制
-     * @author  xiaoqianbin
-     * @date    2020/6/22
-     **/
-    private void acquirePermits() {
-        try {
-            semaphore.acquire(1);
-        } catch (InterruptedException e) {
-            Thread.interrupted();
         }
     }
 

@@ -1,5 +1,9 @@
 package org.jd.es;
 
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.search.sort.SortOrder;
 import org.jd.es.entity.Role;
 import org.jd.es.entity.User;
 import org.jd.es.service.ElasticSearchService;
@@ -15,6 +19,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -34,9 +40,9 @@ public class EsController {
     ElasticSearchService ess;
 
     @RequestMapping("/addBatch")
-    public void addBatch(@RequestParam("batch")long batch, @RequestParam(name = "batchNo", defaultValue = "1000")long batchNo) throws InterruptedException {
+    public void addBatch(@RequestParam("batch") long batch, @RequestParam(name = "batchNo", defaultValue = "1000") long batchNo,
+                         @RequestParam(name = "count", defaultValue = "10") int count) throws InterruptedException {
         long begin = System.currentTimeMillis();
-        int count = 10;
         AtomicLong ab = new AtomicLong(batch);
         CountDownLatch cdl = new CountDownLatch(count);
         for (int i = 0; i < count; i++) {
@@ -46,7 +52,7 @@ public class EsController {
                     List<User> list = new ArrayList<>();
                     for (long j = 0; j < batchNo; j++) {
                         try {
-                            list.add(createUser(index.getAndAdd(1L)));
+                            list.add(createUser(index.incrementAndGet()));
                         } catch (ParseException e) {
                             e.printStackTrace();
                         }
@@ -62,13 +68,27 @@ public class EsController {
                 System.currentTimeMillis() - begin, ess.getFailed());
     }
 
-    public static void main(String[] args) {
-        List<Integer> list = new ArrayList<>();
-        for (int i = 100000; i < 100100; i++) {
-            list.add(i);
-
-        }
-        System.out.println(list);
+    @RequestMapping("/queryBatch")
+    public String queryBatch(@RequestParam(name = "bizdate", defaultValue = "2020-06-22") String bizdate,
+                             @RequestParam(name = "fetchSize", defaultValue = "1500") int fetchSize) {
+        long start = System.currentTimeMillis();
+        BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
+        BoolQueryBuilder must = boolQueryBuilder
+                .must(QueryBuilders.termQuery("bizdate", bizdate))
+                .must(QueryBuilders.rangeQuery("age").lte(10000));
+        SearchResponse response = ess.getClient().prepareSearch("tuser").setTypes("doc")
+                .setQuery(must)
+                .addSort("age", SortOrder.DESC)
+                .setFrom(0).setSize(fetchSize)
+                .get();
+        String info = String.format("cost: %d, hits: %d, size: %d, es cost: %d, ",
+                System.currentTimeMillis() - start,
+                response.getHits().totalHits,
+                response.getHits().getHits().length,
+                response.getTook().getMillis()
+        );
+        logger.info(info);
+        return info;
     }
 
     public static User createUser(long id) throws ParseException {
@@ -100,11 +120,13 @@ public class EsController {
         user.setAddr25("成都市-青羊区-苏坡乡");
         user.setAddr26("成都市-青羊区-苏坡乡");
         user.setAddress("成都市-青羊区-苏坡乡");
+        user.setAge(id);
         user.setName("张三-" + id);
         Date d = new Date();
         d.setTime(d.getTime() + id / 1000000 * (24L * 60 * 60 * 1000));
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         user.setBizdate(format.parse(format.format(d)));
+        user.setBirthday(new Date());
         Role role = new Role();
         role.setName("manager-" + id / 1000000);
         role.setCode("MANAGER-CODE");
