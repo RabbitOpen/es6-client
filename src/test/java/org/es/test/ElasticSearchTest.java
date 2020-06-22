@@ -3,16 +3,16 @@ package org.es.test;
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequestBuilder;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequestBuilder;
+import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.sort.SortBuilder;
-import org.elasticsearch.search.sort.SortBuilders;
-import org.elasticsearch.search.sort.SortMode;
 import org.elasticsearch.search.sort.SortOrder;
+import org.jd.es.EsController;
 import org.jd.es.SpringBootEntry;
+import org.jd.es.entity.User;
 import org.jd.es.service.ElasticSearchService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -23,8 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.text.ParseException;
 
 /**
  * @author xiaoqianbin
@@ -40,25 +39,11 @@ public class ElasticSearchTest {
     ElasticSearchService ess;
 
     @Test
-    public void addSingleUser() {
-        ess.addUser(100);
-        long start = System.currentTimeMillis();
-        for (int i = 0; i < 100; i++) {
-            ess.addUser(i);
-        }
-        logger.info("cost: {}", System.currentTimeMillis() - start);
-    }
-
-    @Test
-    public void bulkAddUser() {
-        ess.addUser(100);
-        long start = System.currentTimeMillis();
-        List<Long> list = new ArrayList<>();
-        for (long i = 0; i < 10; i++) {
-            list.add(i);
-        }
-        ess.bulkAdd(list);
-        logger.info("cost: {}", System.currentTimeMillis() - start);
+    public void addSingleUser() throws ParseException {
+        User user = EsController.createUser(1L);
+        IndexRequestBuilder request = ess.getClient().prepareIndex("tuser", "doc")
+                .setSource(ess.toMap(user));
+        request.get();
     }
 
     @Test

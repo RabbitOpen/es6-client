@@ -6,23 +6,43 @@ package org.jd.es.entity;
  **/
 public class Role {
 
-    String roleName;
+    String name;
 
-    String roleCode;
+    String code;
 
-    public String getRoleName() {
-        return roleName;
+    String id;
+
+    String desc;
+
+    public String getName() {
+        return name;
     }
 
-    public void setRoleName(String roleName) {
-        this.roleName = roleName;
+    public void setName(String name) {
+        this.name = name;
     }
 
-    public String getRoleCode() {
-        return roleCode;
+    public String getCode() {
+        return code;
     }
 
-    public void setRoleCode(String roleCode) {
-        this.roleCode = roleCode;
+    public void setCode(String code) {
+        this.code = code;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getDesc() {
+        return desc;
+    }
+
+    public void setDesc(String desc) {
+        this.desc = desc;
     }
 }

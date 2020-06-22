@@ -1,5 +1,7 @@
 package org.jd.es.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+
 import java.util.Date;
 
 /**
@@ -10,16 +12,17 @@ public class User {
 
     String name = "";
 
-    String roleCode;
-
     Date birthday;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    Date bizdate;
 
     String address;
 
+    Role role;
+
     long age;
 
-    String addr81;
-    String addr82;
     String addr1;
     String addr2;
     String addr3;
@@ -56,13 +59,6 @@ public class User {
         this.name = name;
     }
 
-    public String getRoleCode() {
-        return roleCode;
-    }
-
-    public void setRoleCode(String roleCode) {
-        this.roleCode = roleCode;
-    }
 
     public long getAge() {
         return age;
@@ -86,22 +82,6 @@ public class User {
 
     public void setAddress(String address) {
         this.address = address;
-    }
-
-    public String getAddr81() {
-        return addr81;
-    }
-
-    public void setAddr81(String addr81) {
-        this.addr81 = addr81;
-    }
-
-    public String getAddr82() {
-        return addr82;
-    }
-
-    public void setAddr82(String addr82) {
-        this.addr82 = addr82;
     }
 
     public String getAddr1() {
@@ -310,5 +290,21 @@ public class User {
 
     public void setAddr26(String addr26) {
         this.addr26 = addr26;
+    }
+
+    public Date getBizdate() {
+        return bizdate;
+    }
+
+    public void setBizdate(Date bizdate) {
+        this.bizdate = bizdate;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
     }
 }

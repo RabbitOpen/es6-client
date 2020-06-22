@@ -1,137 +1,164 @@
 package org.jd.es.service;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionRequestBuilder;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.action.index.IndexRequestBuilder;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import sun.misc.Cleaner;
-import sun.nio.ch.DirectBuffer;
 
 import javax.annotation.PostConstruct;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
-import java.nio.ByteBuffer;
+import java.net.UnknownHostException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * elastic search 服务类
+ * es6 client service
  * @author xiaoqianbin
- * @date 2020/6/15
+ * @date 2020/6/22
  **/
 @Service
 public class ElasticSearchService {
 
+    private Logger logger = LoggerFactory.getLogger(getClass());
+
     private TransportClient client;
 
-    private AtomicLong failure = new AtomicLong();
+    @Value("${es.hosts:10.222.16.82}")
+    private String esHosts;
+
+    @Value("${es.port:9300}")
+    private int esPort;
+
+    // 最大异步等待的批次数
+    @Value("${es.maxWaitingBatches:500}")
+    private Integer maxWaitingBatches;
+
+    private Semaphore semaphore;
+
+    // 失败次数
+    private AtomicLong failed = new AtomicLong(0);
 
     @PostConstruct
-    public void initialize() throws Exception {
+    public void init() throws UnknownHostException {
         Settings esSettings = Settings.builder()
-                .put("client.transport.sniff", true)
-                .build();
+                .put("client.transport.sniff", true).build();
         client = new PreBuiltTransportClient(esSettings);
-        String[] esHosts = "10.222.16.82".trim().split(",");
-        for (String host : esHosts) {
+        String[] hosts = esHosts.trim().split(",");
+        for (String host : hosts) {
             InetAddress addr = InetAddress.getByName(host);
-            client.addTransportAddress(new TransportAddress(addr, 9300));
+            client.addTransportAddress(new TransportAddress(addr, esPort));
         }
-    }
-
-    /**
-     * 添加一个用户
-     * @author  xiaoqianbin
-     * @date    2020/6/16
-     **/
-    public void addUser(long id) {
-        Map<String, Object> map = createUserMap(id);
-        IndexRequestBuilder request = client.prepareIndex("tuser","doc").setSource(map);
-        request.execute().actionGet();
-    }
-
-    private Map<String, Object> createUserMap(Long id) {
-        Map<String, Object> map = new HashMap();
-        map.put("name", "张三-" + id);
-        map.put("age", id);
-        map.put("address", "成都市-青羊区-苏坡乡");
-        map.put("addr1", "成都市-青羊区-苏坡乡");
-        map.put("addr2", "成都市-青羊区-苏坡乡");
-        map.put("addr3", "成都市-青羊区-苏坡乡");
-        map.put("addr4", "成都市-青羊区-苏坡乡");
-        map.put("addr5", "成都市-青羊区-苏坡乡");
-        map.put("addr6", "成都市-青羊区-苏坡乡");
-        map.put("addr7", "成都市-青羊区-苏坡乡");
-        map.put("addr8", "成都市-青羊区-苏坡乡");
-        map.put("addr9", "成都市-青羊区-苏坡乡");
-        map.put("addr10", "成都市-青羊区-苏坡乡");
-        map.put("addr11", "成都市-青羊区-苏坡乡");
-        map.put("addr12", "成都市-青羊区-苏坡乡");
-        map.put("addr13", "成都市-青羊区-苏坡乡");
-        map.put("addr14", "成都市-青羊区-苏坡乡");
-        map.put("addr15", "成都市-青羊区-苏坡乡");
-        map.put("addr16", "成都市-青羊区-苏坡乡");
-        map.put("addr17", "成都市-青羊区-苏坡乡");
-        map.put("addr18", "成都市-青羊区-苏坡乡");
-        map.put("addr19", "成都市-青羊区-苏坡乡");
-        map.put("addr20", "成都市-青羊区-苏坡乡");
-        map.put("addr21", "成都市-青羊区-苏坡乡");
-        map.put("addr22", "成都市-青羊区-苏坡乡");
-        map.put("addr23", "成都市-青羊区-苏坡乡");
-        map.put("addr24", "成都市-青羊区-苏坡乡");
-        map.put("addr25", "成都市-青羊区-苏坡乡");
-        map.put("addr26", "成都市-青羊区-苏坡乡");
-        Date d = new Date();
-        d.setTime(d.getTime() + id / 1000000 * (24L * 60 * 60 * 1000));
-        map.put("bizDate", new SimpleDateFormat("yyyy-MM-dd").format(d));
-        HashMap<Object, Object> role = new HashMap<>();
-        role.put("name", "manager-" + id / 1000000);
-        role.put("code", "MANAGER-CODE");
-        role.put("id", id);
-        map.put("role", role);
-        map.put("birthday", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date()));
-        return map;
+        semaphore = new Semaphore(maxWaitingBatches);
     }
 
     /**
      * 批量添加数据
-     * @param	ids
+     * @param	list
+     * @param	index   索引
+     * @param	type    表
+     * @param	successCallback
+     * @param	failedCallback
      * @author  xiaoqianbin
-     * @date    2020/6/16
+     * @date    2020/6/22
      **/
-    public void bulkAdd(List<Long> ids) {
+    public void addBatch(List<?> list, String index, String type, Runnable successCallback, Runnable failedCallback) {
         BulkRequestBuilder bulk = client.prepareBulk();
-        for (Long id : ids) {
-            bulk.add(client.prepareIndex("tuser","doc").setSource(createUserMap(id)));
+        for (Object o : list) {
+            bulk.add(client.prepareIndex(index, type).setSource(toMap(o)));
         }
         bulk.execute(new ActionListener<BulkResponse>() {
             @Override
             public void onResponse(BulkResponse responses) {
-                logger.info("bulk add succeed！ cost: {}", responses.getTook().getMillis());
+                semaphore.release();
+                successCallback.run();
             }
             @Override
             public void onFailure(Exception e) {
-                failure.getAndAdd(1L);
+                semaphore.release();
+                failed.getAndAdd(1L);
+                failedCallback.run();
             }
         });
         clearRequestData(bulk);
-
-
     }
 
+    /**
+     * 获取失败次数
+     * @param
+     * @author  xiaoqianbin
+     * @date    2020/6/22
+     **/
+    public long getFailed() {
+        return failed.get();
+    }
+
+    /**
+     * object to map
+     * @param	o
+     * @author  xiaoqianbin
+     * @date    2020/6/22
+     **/
+    public Map<String, Object> toMap(Object o) {
+        Map<String, Object> map = new HashMap<>();
+        for (Field field : o.getClass().getDeclaredFields()) {
+            field.setAccessible(true);
+            try {
+                Object value = field.get(o);
+                if (null != value && !value.getClass().getName().startsWith("java")) {
+                    map.put(field.getName(), toMap(value));
+                } else {
+                    if (value instanceof Date) {
+                        JsonFormat jf = field.getDeclaredAnnotation(JsonFormat.class);
+                        if (null != jf) {
+                            map.put(field.getName(), new SimpleDateFormat(jf.pattern()).format(value));
+                        } else {
+                            map.put(field.getName(), value);
+                        }
+                    } else {
+                        map.put(field.getName(), value);
+                    }
+                }
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            }
+        }
+        return  map;
+    }
+
+    /**
+     * 批量添加数据
+     * @param	list
+	 * @param	index
+	 * @param	type
+     * @author  xiaoqianbin
+     * @date    2020/6/22
+     **/
+    public void addBatch(List<?> list, String index, String type) {
+        addBatch(list, index, type, () -> {}, () -> {});
+    }
+
+    /**
+     * 清除bulk请求中的数据，释放出内存
+     * @param	bulk
+     * @author  xiaoqianbin
+     * @date    2020/6/22
+     **/
     protected void clearRequestData(BulkRequestBuilder bulk) {
         try {
             Field reqField = ActionRequestBuilder.class.getDeclaredField("request");
@@ -145,14 +172,20 @@ public class ElasticSearchService {
         }
     }
 
-    private Logger logger = LoggerFactory.getLogger(getClass());
+    /**
+     * 获取信号量，用以限流控制
+     * @author  xiaoqianbin
+     * @date    2020/6/22
+     **/
+    private void acquirePermits() {
+        try {
+            semaphore.acquire(1);
+        } catch (InterruptedException e) {
+            Thread.interrupted();
+        }
+    }
 
     public TransportClient getClient() {
         return client;
     }
-
-    public AtomicLong getFailure() {
-        return failure;
-    }
-
 }
