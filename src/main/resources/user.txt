@@ -1,0 +1,337 @@
+#创建索引
+curl -XPUT 10.222.16.82:9200/tuser?pretty
+
+#删除索引
+curl -XDELETE 10.222.16.82:9200/tuser?pretty
+
+
+#创建索引mapping
+curl -XPOST 10.222.16.82:9200/tuser/doc/_mapping?pretty -d '
+{
+    "doc": {
+        "properties": {
+            "name": {
+                "type": "text",
+                "fielddata": true,
+                "index": true
+            },
+            "birthday": {
+                "format": "date_optional_time||epoch_millis ",
+                "type": "date",
+                "index": true
+            },
+            "age": {
+                "type": "long",
+                "index": true
+            },
+            "address": {
+                "type": "text",
+                "index": true
+            },
+            "role": {
+                "type": "nested",
+                "properties": {
+                    "name": {
+                        "type": "text",
+                        "fielddata": true,
+                        "index": true
+                    },
+                    "code": {
+                        "type": "text",
+                        "fielddata": true,
+                        "index": true
+                    },
+                    "desc": {
+                        "type": "text",
+                        "fielddata": true,
+                        "index": true
+                    }
+                }
+            }
+        }
+    }
+}'  -H "Content-Type: application/json"
+
+#查看索引mapping
+curl -XGET 10.222.16.82:9200/tuser/_mapping?pretty
+
+
+#添加数据
+curl -POST 10.222.16.82:9200/tuser/doc?pretty -d '
+{
+    "name": "毛泽东",
+    "age": "10",
+    "birthday": "2010-10-20T10:10:12",
+    "address": ["chengdu", "北京"],
+    "role": {
+        "name": "employee",
+        "code": "ROLE_EMP",
+        "desc": "员工"
+    }
+}
+' -H "Content-Type: application/json"
+
+#bulk操作
+curl -XPOST 10.222.16.82:9200/_bulk?pretty --data-binary @request -H "Content-Type: application/json"
+
+
+#局部更新
+curl -PUT 10.222.16.82:9200/tuser/doc/1/_update?pretty -d '
+{
+    "doc": {
+        "name": "邓小平",
+        "age": "110"
+    }
+}
+' -H "Content-Type: application/json"
+
+
+#分页 排序 查询数据
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "match_all": {}
+    },
+    "from": 0,
+    "size": 10,
+    "sort": [
+        {
+            "age": {
+                "order": "desc"
+            }
+        }
+    ]
+}' -H "Content-Type: application/json"
+
+#条件查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "bool": {
+            "must": [{
+                "nested": {
+                    "path": "role",
+                    "query": {
+                        "bool": {
+                            "must": [{
+                                "match": {
+                                    "role.name": "manager"
+                                }
+                            }]
+                        }
+                    }
+                }
+            }]
+        }
+    },
+    "from": 0,
+    "size": 10,
+    "sort": [
+        {
+            "age": {
+                "order": "desc"
+            }
+        }
+    ]
+}' -H "Content-Type: application/json"
+
+
+#terms查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "terms": {
+            "name": ["liusi"]
+        }
+    }
+}' -H "Content-Type: application/json"
+
+#match 查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "match": {
+            "address": "chengdu"
+        }
+    }
+}' -H "Content-Type: application/json"
+
+#range查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "range" : {
+            "birthday" : {
+                "gte" : "2019-12-10",
+                "lte" : "2021-11-11",
+                "format" : "yyyy-MM-dd"
+            }
+        }
+    }
+}' -H "Content-Type: application/json"
+
+#模糊查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "wildcard": {
+            "name": "*si"
+        }
+    }
+}' -H "Content-Type: application/json"
+
+
+#调整分页窗口
+curl -XPUT 10.222.16.82:9200/tuser/_settings?pretty -d '{
+    "index.max_result_window": "2147483647"
+}' -H "Content-Type: application/json"
+
+#查询语法可参考： https://www.cnblogs.com/haixiang/p/12095578.html
+
+#范围查找
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "range": {
+            "age": {
+                "gte": 100,
+                "lte": 102
+            }
+        }
+    },
+    "from": 0,
+    "size": 5
+}' -H "Content-Type: application/json"
+
+
+#terms查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+         "terms": {
+            "name": ["张三-101", "张三-102"]
+        }
+    }
+}' -H "Content-Type: application/json"
+
+
+#term查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "term": {
+            "name": "张三-12980"
+        }
+    },
+    "from": 0,
+    "size": 5
+}' -H "Content-Type: application/json"
+
+#bool查询
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "bool": {
+            "must": {
+                "match": {
+                    "name": "张三-111"
+                }
+            },
+            "should": {
+                "match": {
+                    "address": "成都市-青羊区-苏坡乡xxx"
+                }
+            }
+        }
+    },
+    "from": 0,
+    "size": 5
+}' -H "Content-Type: application/json"
+
+#bool 多match
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "bool": {
+            "must": [
+                {"term": {"name": "张三-111"}},
+                {"match": {"address": "成都市-青羊区-苏坡乡"}}
+            ]
+        }
+    },
+    "from": 0,
+    "size": 5
+}' -H "Content-Type: application/json"
+
+
+#filter查询 模拟or "_source"过滤关心的字段
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "bool": {
+            "must": {
+                "bool" : {
+                    "should": [
+                        {"term": {"name": "张三-111"}},
+                        {"term": {"address": "成都市-青羊区-苏坡乡"}}
+                    ]
+                }
+            }
+        }
+    },
+    "_source": ["name", "address", "age"],
+    "from": 0,
+    "size": 5
+}' -H "Content-Type: application/json"
+
+
+
+#-----------------------------------------------------------------------
+#聚合查询 "total" 设置返回的 "key", 对age字段做sum，支持max min sum avg terms cardinality等操作
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "range": {
+            "age": {
+                "lte": 100000,
+                "gte": 99998
+            }
+        }
+    },
+    "size": 10,
+    "aggs": {
+        "total": {
+            "sum" : {
+                "field": "age"
+            }
+        }
+    }
+}' -H "Content-Type: application/json"
+
+#分组条件聚合(按名字进行聚合)
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "range": {
+            "age": {
+                "lte": 100000,
+                "gte": 99998
+            }
+        }
+    },
+    "size": 0,
+    "aggs": {
+        "group_by_name": {
+            "terms": {
+                "field": "name"
+            },
+            "aggs": {
+                "total": {
+                    "sum" : {
+                        "field": "age"
+                    }
+                }
+            }
+        }
+    }
+}' -H "Content-Type: application/json"

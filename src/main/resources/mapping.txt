@@ -1,0 +1,42 @@
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "bool": {
+            "must": [
+                {"term": {"bizDate": "2020-06-18"}},
+                {"range": {"age": {"lte": 800000}}}
+            ]
+        }
+    },
+    "from": 0,
+    "size": 3,
+    "sort": [
+	    {"age": {"order": "desc"}}
+    ]
+}' -H "Content-Type: application/json"
+
+
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "match_all": {}
+    },
+    "size": 0
+}' -H "Content-Type: application/json"
+
+
+curl -XPOST 10.222.16.82:9200/tuser/doc/_search?pretty -d '
+{
+    "query": {
+        "bool": {
+            "must": [
+                {"term": {"age": 1000000}}
+            ]
+        }
+    },
+    "from": 0,
+    "size": 3,
+    "sort": [
+	    {"age": {"order": "desc"}}
+    ]
+}' -H "Content-Type: application/json"
