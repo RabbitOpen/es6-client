@@ -94,7 +94,7 @@ public class HbaseController {
         Table table = bs.getConnection().getTable(TableName.valueOf("iou"));
         List<Get> list = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {
-            Get get = new Get(Bytes.toBytes("20160628iou-" + (1400000 + i)));
+            Get get = new Get(Bytes.toBytes("20160628iou-" + i));
             list.add(get);
         }
         Result[] results = new Result[list.size()];
@@ -110,7 +110,7 @@ public class HbaseController {
         long start = System.currentTimeMillis();
         ArrayList<Put> puts = new ArrayList<>();
         for (int i = 0; i < batch; i++) {
-            Put put = new Put(Bytes.toBytes("20200628" + String.format("%08d", i)));
+            Put put = new Put(Bytes.toBytes("20200628" + String.format("%08d", index.getAndAdd(1L))));
             put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("bizDate"), Bytes.toBytes(new SimpleDateFormat("yyyyMMdd").format(new Date())));
             put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("iou"), Bytes.toBytes("iou-" + i));
             put.addColumn(Bytes.toBytes("info"), Bytes.toBytes("user"), Bytes.toBytes("张三" + i));
