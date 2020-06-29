@@ -94,7 +94,7 @@ public class HbaseController {
         Table table = bs.getConnection().getTable(TableName.valueOf("iou"));
         List<Get> list = new ArrayList<>();
         for (int i = 0; i < 1000; i++) {
-            Get get = new Get(Bytes.toBytes("20160628iou-" + i));
+            Get get = new Get(Bytes.toBytes("20160628" + String.format("%08d", i)));
             list.add(get);
         }
         Result[] results = new Result[list.size()];
