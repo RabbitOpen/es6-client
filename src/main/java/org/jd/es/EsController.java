@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @date 2020/6/16
  **/
 @RestController
+@RequestMapping("/es")
 public class EsController {
 
     private AtomicLong index = new AtomicLong(0);

@@ -2,7 +2,6 @@ package org.jd.es.service;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.elasticsearch.action.ActionRequestBuilder;
-import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;

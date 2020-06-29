@@ -95,6 +95,13 @@
             <artifactId>elasticsearch</artifactId>
             <version>${elasticsearch.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-client</artifactId>
+            <version>2.2.5</version>
+        </dependency>
+
     </dependencies>
 
 
@@ -146,7 +153,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <!-- 指定SpringBoot程序的main函数入口类 -->
-                    <mainClass>org.jd.es.SpringBootEntry</mainClass>
+                    <mainClass>org.jd.SpringBootEntry</mainClass>
                     <finalName>${project.artifactId}</finalName>
                 </configuration>
                 <executions>
