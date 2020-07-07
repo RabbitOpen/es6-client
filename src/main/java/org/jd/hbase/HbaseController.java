@@ -84,6 +84,7 @@ public class HbaseController {
                 break;
             }
         }
+        scanner.close();
         table.close();
         logger.info("total cost: {}, scan count: {}", System.currentTimeMillis() - begin, count);
     }

@@ -1,10 +1,9 @@
 package org.es.test;
 
+import org.apache.hadoop.hbase.CompareOperator;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.client.*;
+import org.apache.hadoop.hbase.filter.*;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.jd.SpringBootEntry;
 import org.jd.hbase.HbaseService;
@@ -72,6 +71,24 @@ public class HbaseTest {
         Result[] results = new Result[list.size()];
         table.batch(list, results);
         logger.info("cost: {}", System.currentTimeMillis() - start);
+        table.close();
+        return;
+    }
+
+    @Test
+    public void filterTest() throws IOException, InterruptedException {
+        Table table = bs.getConnection().getTable(TableName.valueOf("iou"));
+        long start = System.currentTimeMillis();
+        Scan scan = new Scan();
+        scan.addFamily(Bytes.toBytes("info"));
+        scan.setFilter(new RowFilter(CompareOperator.EQUAL, new BinaryPrefixComparator("202006280000100".getBytes())));
+        scan.withStartRow("2020062800001000".getBytes());
+        scan.withStopRow("2020062800002000".getBytes());
+        ResultScanner scanner = table.getScanner(scan);
+        Result[] next = scanner.next(100);
+
+        scanner.close();
+        logger.info("cost: {}, size: {}", System.currentTimeMillis() - start, next.length);
         table.close();
         return;
     }

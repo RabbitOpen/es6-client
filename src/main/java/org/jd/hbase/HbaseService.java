@@ -1,14 +1,12 @@
 package org.jd.hbase;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.*;
-import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 
 /**
@@ -22,7 +20,7 @@ public class HbaseService {
 
     Connection connection;
 
-    @PostConstruct
+//    @PostConstruct
     public void init() throws IOException {
 //        System.setProperty("hadoop.home.dir", "D:\\Program Files\\hadoop-2.8.5");
         Configuration config = new Configuration();
